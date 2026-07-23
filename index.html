@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Maps Link Parser Engine</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+      --success: #22c55e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 650px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .header {
+      margin-bottom: 20px;
+    }
+
+    .header h2 {
+      font-size: 1.5rem;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+
+    .header p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    input[type="url"] {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="url"]:focus {
+      border-color: var(--primary);
+    }
+
+    button {
+      padding: 12px 20px;
+      background-color: var(--primary);
+      color: #0f172a;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+      color: #ffffff;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .loader {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: var(--primary);
+      font-size: 0.9rem;
+    }
+
+    .results-card {
+      display: none;
+      border-top: 1px solid var(--border-color);
+      padding-top: 20px;
+      margin-top: 10px;
+    }
+
+    .field-row {
+      margin-bottom: 14px;
+    }
+
+    .field-row label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .field-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 12px;
+    }
+
+    .field-value {
+      font-size: 0.9rem;
+      color: var(--text-main);
+      word-break: break-all;
+      margin-right: 10px;
+    }
+
+    .btn-copy {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--primary);
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .btn-copy:hover {
+      background-color: var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-copy-all {
+      width: 100%;
+      margin-top: 15px;
+      background-color: transparent;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+    }
+
+    .btn-copy-all:hover {
+      background-color: var(--primary);
+      color: #0f172a;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: var(--success);
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h2>Google Maps Link Parser</h2>
+      <p>Ekstrak Nama Tempat, Alamat, dan Koordinat Presisi Tanpa API Key</p>
+    </div>
+
+    <div class="input-group">
+      <label for="apiKey">Google Maps / DistanceMatrix API Key <span style="font-size: 0.8em; font-weight:normal; color:#94a3b8;">(Disimpan otomatis)</span></label>
+      <div style="display: flex; gap: 8px;">
+        <input type="password" id="apiKey" placeholder="Masukkan API Key (AIza... atau Elhv...)" style="flex: 1; margin: 0;" />
+        <button class="btn-copy" onclick="resetApiKey()" style="padding: 0 15px; cursor: pointer; color: #fca5a5; border-color: rgba(248, 113, 113, 0.3);" title="Hapus API Key saat ini jika limit habis">Hapus Key</button>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label for="gmapsUrl">Paste Link Google Maps (Gunakan Link Panjang)</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="gmapsUrl" placeholder="https://www.google.com/maps/place/..." style="flex: 1; margin: 0;" />
+        <button class="btn-copy" onclick="pasteFromClipboard()" style="padding: 0 15px; cursor: pointer;">Paste</button>
+        <button class="btn-copy" onclick="resetForm()" style="padding: 0 15px; cursor: pointer; color: #fca5a5; border-color: rgba(248, 113, 113, 0.3);">Reset</button>
+      </div>
+    </div>
+
+    <button class="btn-process" onclick="parseGmapsLink()">Proses Link</button>
+
+    <div id="loader" class="loader">
+      ⏳ Membaca koordinat dan menghubungi Google API...
+    </div>
+
+    <div id="resultsCard" class="results-card">
+      <div class="field-row">
+        <label>Nama Lokasi</label>
+        <div class="field-content">
+          <span id="resName" class="field-value">-</span>
+          <button class="btn-copy" onclick="copyText('resName')">Copy</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <label>Alamat Lengkap (Resmi dari Google)</label>
+        <div class="field-content">
+          <span id="resAddress" class="field-value">-</span>
+          <button class="btn-copy" onclick="copyText('resAddress')">Copy</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <label>Latitude</label>
+        <div class="field-content">
+          <span id="resLat" class="field-value">-</span>
+          <button class="btn-copy" onclick="copyText('resLat')">Copy</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <label>Longitude</label>
+        <div class="field-content">
+          <span id="resLng" class="field-value">-</span>
+          <button class="btn-copy" onclick="copyText('resLng')">Copy</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <label>Pasted Link</label>
+        <div class="field-content">
+          <span id="resLink" class="field-value">-</span>
+          <button class="btn-copy" onclick="copyText('resLink')">Copy</button>
+        </div>
+      </div>
+
+      <button class="btn-copy-all" onclick="copyAllFormatted()">📋 COPY SEMUA FORMAT REKAP</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Teks berhasil disalin!</div>
+
+  <script>
+    // Memuat API Key yang tersimpan saat halaman dibuka
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedKey = localStorage.getItem('gmaps_api_key');
+      if (savedKey) {
+        document.getElementById('apiKey').value = savedKey;
+      }
+
+      // Dukungan tombol Enter untuk input URL
+      document.getElementById('gmapsUrl').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          parseGmapsLink();
+        }
+      });
+      
+      // Dukungan tombol Enter untuk input API Key
+      document.getElementById('apiKey').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          parseGmapsLink();
+        }
+      });
+    });
+
+    async function pasteFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          document.getElementById('gmapsUrl').value = text;
+          showToast('Link di-paste dari clipboard! Memproses...');
+          // Langsung otomatis diproses setelah dipaste
+          parseGmapsLink();
+        }
+      } catch (err) {
+        showToast('Gagal mem-paste. Pastikan browser mengizinkan akses clipboard.');
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('gmapsUrl').value = '';
+      document.getElementById('resultsCard').style.display = 'none';
+      document.getElementById('resName').textContent = '-';
+      document.getElementById('resAddress').textContent = '-';
+      document.getElementById('resLat').textContent = '-';
+      document.getElementById('resLng').textContent = '-';
+      document.getElementById('resLink').textContent = '-';
+      showToast('Kolom berhasil dibersihkan.');
+    }
+
+    function resetApiKey() {
+      document.getElementById('apiKey').value = '';
+      localStorage.removeItem('gmaps_api_key');
+      showToast('API Key dihapus! Silakan masukkan key baru dari dashboard Anda.');
+      document.getElementById('apiKey').focus();
+    }
+
+    async function parseGmapsLink() {
+      const inputUrl = document.getElementById('gmapsUrl').value.trim();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const resultsCard = document.getElementById('resultsCard');
+      const loader = document.getElementById('loader');
+
+      if (!inputUrl) {
+        showToast('Masukkan URL Google Maps terlebih dahulu!');
+        return;
+      }
+
+      if (!apiKey) {
+        showToast('Harap masukkan API Key terlebih dahulu!');
+        return;
+      }
+
+      // Simpan API Key ke localStorage
+      localStorage.setItem('gmaps_api_key', apiKey);
+
+      // Validasi: pastikan bukan shortlink
+      if (inputUrl.includes('maps.app.goo.gl')) {
+        showToast('Harap gunakan Link Panjang dari browser, BUKAN shortlink (maps.app.goo.gl)!');
+        return;
+      }
+
+      resultsCard.style.display = 'none';
+      loader.style.display = 'block';
+
+      try {
+        let lat = 'Tidak ditemukan';
+        let lng = 'Tidak ditemukan';
+        let name = 'Tidak ditemukan';
+        let address = 'Mencari alamat...';
+
+        // 1. Ekstraksi Koordinat
+        const latMatch = inputUrl.match(/!3d(-?\d+\.\d+)/);
+        const lngMatch = inputUrl.match(/!4d(-?\d+\.\d+)/);
+        if (latMatch && lngMatch) {
+          lat = latMatch[1];
+          lng = lngMatch[1];
+        } else {
+          const viewportMatch = inputUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+          if (viewportMatch) {
+            lat = viewportMatch[1];
+            lng = viewportMatch[2];
+          }
+        }
+
+        // 2. Ekstraksi Nama Tempat (contoh: /place/Nama+Tempat/)
+        const nameMatch = inputUrl.match(/\/place\/([^\/]+)\//);
+        if (nameMatch) {
+          name = decodeURIComponent(nameMatch[1].replace(/\+/g, ' '));
+        }
+
+        if (lat === 'Tidak ditemukan' && name === 'Tidak ditemukan') {
+          throw new Error('Format link panjang tidak dikenali atau tidak mengandung data lokasi.');
+        }
+
+        // 3. Reverse Geocoding untuk mendapatkan Alamat Lengkap (Smart Caching + API)
+        if (lat !== 'Tidak ditemukan' && lng !== 'Tidak ditemukan') {
+          const cacheKey = `addr_${lat}_${lng}`;
+          const cachedAddress = localStorage.getItem(cacheKey);
+
+          if (cachedAddress) {
+            // Gunakan cache lokal agar menghemat limit API!
+            address = cachedAddress;
+          } else {
+            try {
+              // Deteksi otomatis tipe API Key (Google Key selalu berawalan AIza)
+              let geocodeUrl = '';
+              if (apiKey.startsWith('AIza')) {
+                geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
+              } else {
+                geocodeUrl = `https://api.distancematrix.ai/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
+              }
+              
+              const geoResponse = await fetch(geocodeUrl);
+              const geoData = await geoResponse.json();
+              
+              const resultsArr = geoData.results || geoData.result;
+              
+              if (geoData.status === 'OK') {
+                if (resultsArr && resultsArr.length > 0) {
+                  address = resultsArr[0].formatted_address;
+                  localStorage.setItem(cacheKey, address); // Simpan ke cache
+                } else if (geoData.formatted_address) {
+                  address = geoData.formatted_address;
+                  localStorage.setItem(cacheKey, address); // Simpan ke cache
+                } else {
+                  address = 'Alamat tidak ditemukan di dalam response OK.';
+                }
+              } else if (geoData.status === 'REQUEST_DENIED') {
+                address = 'Error: API Key tidak valid atau limit habis.';
+              } else if (geoData.status === 'ZERO_RESULTS') {
+                address = 'Alamat tidak ditemukan untuk koordinat ini.';
+              } else {
+                address = `Error: ${geoData.status} - ${geoData.error_message || 'Gagal memuat alamat'}`;
+              }
+            } catch (geoErr) {
+              console.warn('Geocoding failed:', geoErr);
+              address = 'Gagal memuat alamat (Periksa koneksi internet atau API Key).';
+            }
+          }
+        } else {
+            address = 'Koordinat tidak ditemukan, gagal melacak alamat.';
+        }
+
+        // 4. Render Output
+        document.getElementById('resName').textContent = name;
+        document.getElementById('resAddress').textContent = address;
+        document.getElementById('resLat').textContent = lat;
+        document.getElementById('resLng').textContent = lng;
+        
+        // Coba ekstrak CID (Customer ID) untuk membuat link yang lebih rapih
+        let cleanLink = inputUrl;
+        const cidMatch = inputUrl.match(/1s0x[0-9a-fA-F]+:0x([0-9a-fA-F]+)/);
+        if (cidMatch && cidMatch[1]) {
+          try {
+            const cidDecimal = BigInt('0x' + cidMatch[1]).toString();
+            cleanLink = `https://maps.google.com/?cid=${cidDecimal}&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA`;
+          } catch (e) {
+            console.error('Gagal konversi CID:', e);
+          }
+        }
+        document.getElementById('resLink').textContent = cleanLink;
+
+        resultsCard.style.display = 'block';
+
+      } catch (err) {
+        showToast(err.message || 'Gagal memproses link. Pastikan format URL benar.');
+        console.error(err);
+      } finally {
+        loader.style.display = 'none';
+      }
+    }
+
+    function copyText(elementId) {
+      const text = document.getElementById(elementId).textContent;
+      if (text && text !== '-') {
+        navigator.clipboard.writeText(text);
+        showToast('Berhasil disalin ke clipboard!');
+      }
+    }
+
+    function copyAllFormatted() {
+      const name = document.getElementById('resName').textContent;
+      const address = document.getElementById('resAddress').textContent;
+      const lat = document.getElementById('resLat').textContent;
+      const lng = document.getElementById('resLng').textContent;
+      const link = document.getElementById('resLink').textContent;
+
+      const formatted = `Nama Lokasi : ${name}\nAlamat      : ${address}\nLatitude    : ${lat}\nLongitude   : ${lng}\nLink Gmaps  : ${link}`;
+
+      navigator.clipboard.writeText(formatted);
+      showToast('Seluruh rekap data berhasil disalin!');
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.display = 'block';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
